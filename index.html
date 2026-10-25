@@ -1,43 +1,150 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="个人主页与编程作品集">
-  <title>我的个人主页</title>
-  <style>
-    body {
-      max-width: 760px;
-      margin: 60px auto;
-      padding: 0 24px;
-      font: 16px/1.8 system-ui, sans-serif;
-      color: #222;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="naitg777 的个人主页 — 计算机专业学生，专注 C++、数据结构与算法。Personal site of naitg777, a computer science student working with C++ and algorithms.">
+<title>naitg777 · 个人主页</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #0969da;
+    --card: #fafafa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --line: #21262d;
+      --accent: #58a6ff;
+      --card: #161b22;
     }
-    h1 { line-height: 1.3; }
-    a { color: #0969da; }
-    section { margin-top: 32px; }
-  </style>
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    padding: 0 24px 80px;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 720px; margin: 0 auto; }
+
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 600; color: var(--accent);
+    margin-bottom: 20px; user-select: none;
+  }
+  h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: -0.02em; }
+  .tagline { margin: 0; color: var(--muted); font-size: 16px; }
+  .tagline strong { color: var(--fg); font-weight: 600; }
+
+  section { padding: 36px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  h2 {
+    margin: 0 0 16px; font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+  }
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li {
+    padding: 14px 16px; margin-bottom: 10px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  }
+  ul.plain li:last-child { margin-bottom: 0; }
+  .item-title { font-weight: 600; display: block; margin-bottom: 2px; }
+  .item-desc { color: var(--muted); font-size: 14px; }
+  .stack { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 13px; padding: 5px 12px; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--line); color: var(--fg);
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  footer { padding-top: 28px; color: var(--muted); font-size: 13px; }
+  .links { display: flex; gap: 20px; flex-wrap: wrap; font-size: 15px; }
+</style>
 </head>
 <body>
-  <h1>你好，我是你的名字</h1>
-  <p>大学生 · C++ / 算法 / 编程项目</p>
+<main>
+
+  <header>
+    <div class="avatar">n7</div>
+    <h1>naitg777</h1>
+    <p class="tagline">计算机专业学生 · <strong>C++ / 数据结构与算法</strong><br>
+      Computer science student, focused on C++ and algorithms.</p>
+  </header>
 
   <section>
-    <h2>关于我</h2>
-    <p>这里介绍你的学习方向、技术栈和个人兴趣。</p>
+    <h2>关于我 / About</h2>
+    <p>我在校学习计算机科学，主要用 <strong>C++</strong> 做算法练习和课程项目，习惯把学到的知识写成能跑起来的代码。</p>
+    <p>目前正在补强数据结构与算法基础，同时学习 Git 与 GitHub 的开源协作流程，尝试通过 Pull Request 参与开源项目。</p>
   </section>
 
   <section>
-    <h2>项目作品</h2>
-    <ul>
-      <li><a href="https://github.com/">我的 GitHub 项目</a></li>
+    <h2>技能 / Skills</h2>
+    <div class="chips">
+      <span class="chip">C++</span>
+      <span class="chip">数据结构与算法</span>
+      <span class="chip">Git / GitHub</span>
+      <span class="chip">HTML &amp; CSS</span>
+      <span class="chip">Linux 基础</span>
+      <span class="chip">Markdown</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>项目与实践 / Projects</h2>
+    <ul class="plain">
+      <li>
+        <span class="item-title">naitg777.github.io</span>
+        <span class="item-desc">你现在看到的这个页面。手写的单文件静态站点，无框架、无外部依赖，自适应深浅色主题。</span>
+        <div class="stack">HTML · CSS · GitHub Pages</div>
+      </li>
+      <li>
+        <span class="item-title">开源协作实践：is-a.dev</span>
+        <span class="item-desc">向开源免费子域服务 is-a.dev 提交 DNS 配置 PR，学习仓库规范、JSON 校验与代码评审流程。</span>
+        <div class="stack">Git · Pull Request · DNS 配置</div>
+      </li>
+      <li>
+        <span class="item-title">算法练习</span>
+        <span class="item-desc">持续用 C++ 刷题，整理常见数据结构（链表、栈与队列、树、图）与基础算法的实现笔记。</span>
+        <div class="stack">C++ · 数据结构 · 算法</div>
+      </li>
     </ul>
   </section>
 
   <section>
-    <h2>联系方式</h2>
-    <p>可以在这里添加你的公开联系渠道。</p>
+    <h2>联系 / Contact</h2>
+    <div class="links">
+      <a href="https://github.com/naitg777" target="_blank" rel="noopener">GitHub @naitg777</a>
+      <a href="mailto:wlh2226545224@gmail.com">wlh2226545224@gmail.com</a>
+    </div>
   </section>
+
+  <footer>
+    © <span id="year">2026</span> naitg777 · Built with plain HTML &amp; CSS
+  </footer>
+
+</main>
+<script>
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
 </body>
 </html>
