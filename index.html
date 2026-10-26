@@ -1130,7 +1130,7 @@
     var IOR = 1.5;
     var THICK = 14;
     var BEZEL = 26;
-    var ABERR = 0.075;
+    var ABERR = 0.5;
     var MAX = 4;
 
     var dpr = 1;
@@ -1140,6 +1140,8 @@
     var uni = {};
     var shapes = new Float32Array(MAX * 4);
     var radii = new Float32Array(MAX);
+    var order = new Int32Array(MAX);   /* 按 z-index 排好的绘制顺序 */
+    var targets = null;                /* 两层 ping-pong FBO，用于堆叠折射 */
 
     var off = document.createElement("canvas");
     var offCtx = off.getContext("2d");
@@ -1199,12 +1201,14 @@
       "void main() { gl_Position = vec4(aPos, 0.0, 1.0); }"
     ].join("\n");
 
-    /* 圆角矩形 SDF → 表面法线 → 折射偏移 → R/B 分离取样 */
+    /* 圆角矩形 SDF → 表面法线 → 折射偏移 → 菲涅尔 + 梯度色散取样
+       多层时由 uLayer 指定本次只画哪一块，上层玻璃就能折射下层玻璃的结果 */
     var FRAG = [
       "precision highp float;",
       "uniform vec2 uRes;",
       "uniform sampler2D uTex;",
       "uniform int uCount;",
+      "uniform int uLayer;",
       "uniform vec4 uShape[4];",
       "uniform float uRadius[4];",
       "uniform float uBezel;",
@@ -1217,12 +1221,18 @@
       "  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;",
       "}",
       "",
+      "/* 像素坐标（左上原点）→ 纹理坐标（左下原点，与 FBO 一致） */",
+      "vec2 toUV(vec2 q) {",
+      "  return vec2(q.x / uRes.x, 1.0 - q.y / uRes.y);",
+      "}",
+      "",
       "void main() {",
       "  vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);",
-      "  vec3 col = texture2D(uTex, p / uRes).rgb;",
+      "  vec3 col = texture2D(uTex, toUV(p)).rgb;",
       "",
       "  for (int i = 0; i < 4; i++) {",
       "    if (i >= uCount) continue;",
+      "    if (uLayer >= 0 && i != uLayer) continue;",
       "    vec4 s = uShape[i];",
       "    if (s.z <= 0.0) continue;",
       "    vec2 local = p - s.xy;",
@@ -1256,25 +1266,41 @@
       "    vec2 inward = -nrm;",
       "    vec2 base = p + inward * disp;",
       "    float rim = 1.0 - smoothstep(0.0, 1.0, t);",
-      "    vec2 ab = inward * disp * uAberr;",
       "",
+      "    /* 菲涅尔：视线近似垂直屏幕，法线偏离 +Z 越多（越靠边缘）反射越强。",
+      "       ny 就是表面法线的 Z 分量（= 1/mag），abs(ny)=1 在中心、趋 0 在边缘 */",
+      "    float fres = pow(1.0 - abs(ny), 2.2);",
+      "",
+      "    /* 梯度色散：边缘满、中心归零。偏移量必须封顶——色散量若直接跟着 disp 走，",
+      "       小元素（圆球）整块都是环带，会被染成肥皂泡。真实玻璃的色散本来就是亚像素级 */",
+      "    float abLen = min(disp * uAberr * rim, 1.8);",
+      "    vec2 ab = inward * abLen;",
       "    vec3 refr;",
-      "    refr.r = texture2D(uTex, (base + ab) / uRes).r;",
-      "    refr.g = texture2D(uTex, base / uRes).g;",
-      "    refr.b = texture2D(uTex, (base - ab) / uRes).b;",
+      "    refr.r = texture2D(uTex, toUV(base + ab)).r;",
+      "    refr.g = texture2D(uTex, toUV(base)).g;",
+      "    refr.b = texture2D(uTex, toUV(base - ab)).b;",
       "",
-      "    vec2 bs = vec2(1.6, 0.0) / uRes;",
-      "    vec3 soft = (texture2D(uTex, base / uRes + bs).rgb",
-      "               + texture2D(uTex, base / uRes - bs).rgb",
-      "               + texture2D(uTex, base / uRes + bs.yx).rgb",
-      "               + texture2D(uTex, base / uRes - bs.yx).rgb) * 0.25;",
+      "    /* 四抽样软化：只软在折射量上，别把整块糊掉 */",
+      "    vec2 uv = toUV(base);",
+      "    vec2 px = vec2(1.6 / uRes.x, 1.6 / uRes.y);",
+      "    vec3 soft = (texture2D(uTex, uv + vec2(px.x, 0.0)).rgb",
+      "               + texture2D(uTex, uv - vec2(px.x, 0.0)).rgb",
+      "               + texture2D(uTex, uv + vec2(0.0, px.y)).rgb",
+      "               + texture2D(uTex, uv - vec2(0.0, px.y)).rgb) * 0.25;",
       "    refr = mix(refr, soft, 0.30);",
       "",
-      "    refr = mix(refr, vec3(1.0), 0.035 + 0.05 * rim);",
+      "    /* 白染：环带基础奶白 + 菲涅尔在边缘再叠一层极薄环境反射。",
+      "       fres 是物理量，在 26px 环带里只有最外 1px 才显著，所以是「叠加」不是「替换」，",
+      "       否则等于把整个环带的白染拿掉，玻璃反而变薄变透 */",
+      "    refr = mix(refr, vec3(1.0), 0.035 + 0.050 * rim + 0.070 * fres);",
+      "",
+      "    /* 侧光高光 */",
       "    vec2 L = normalize(vec2(-0.5, -0.82));",
       "    float lit = max(dot(nrm, L), 0.0);",
-      "    refr += pow(lit, 7.0) * rim * 0.26;",
-      "    refr += (1.0 - smoothstep(0.0, 1.2, -d)) * 0.38;",
+      "    refr += pow(lit, 7.0) * rim * 0.24;",
+      "",
+      "    /* 边缘亮线：随菲涅尔增强，把玻璃「鼓」起来 */",
+      "    refr += (1.0 - smoothstep(0.0, 1.2, -d)) * (0.34 + 0.16 * fres);",
       "",
       "    col = mix(col, refr, 1.0 - smoothstep(-1.2, 0.6, d));",
       "  }",
@@ -1329,11 +1355,12 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);   /* 纹理统一左下原点，和 FBO 对齐 */
 
       uni.res = gl.getUniformLocation(prog, "uRes");
       uni.tex = gl.getUniformLocation(prog, "uTex");
       uni.count = gl.getUniformLocation(prog, "uCount");
+      uni.layer = gl.getUniformLocation(prog, "uLayer");
       uni.shape = gl.getUniformLocation(prog, "uShape[0]") || gl.getUniformLocation(prog, "uShape");
       uni.radius = gl.getUniformLocation(prog, "uRadius[0]") || gl.getUniformLocation(prog, "uRadius");
       uni.bezel = gl.getUniformLocation(prog, "uBezel");
@@ -1341,6 +1368,54 @@
       uni.ior = gl.getUniformLocation(prog, "uIor");
       uni.aberr = gl.getUniformLocation(prog, "uAberr");
       return true;
+    }
+
+    /* ── 堆叠折射用的离屏渲染目标 ── */
+    function makeTarget(w, h) {
+      var t = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+      var fb = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+      var ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+      if (!ok) {
+        gl.deleteFramebuffer(fb);
+        gl.deleteTexture(t);
+        return null;
+      }
+      return { fb: fb, tx: t };
+    }
+
+    function dropTargets() {
+      if (!targets) return;
+      for (var i = 0; i < 2; i++) {
+        if (targets[i]) {
+          gl.deleteFramebuffer(targets[i].fb);
+          gl.deleteTexture(targets[i].tx);
+        }
+      }
+      targets = null;
+    }
+
+    function buildTargets(w, h) {
+      dropTargets();
+      var a = makeTarget(w, h);
+      var b = makeTarget(w, h);
+      if (!a || !b) {
+        if (a) { gl.deleteFramebuffer(a.fb); gl.deleteTexture(a.tx); }
+        if (b) { gl.deleteFramebuffer(b.fb); gl.deleteTexture(b.tx); }
+        targets = null;
+        return;
+      }
+      targets = [a, b];
     }
 
     /* 形状从 DOM 实测，天然跟随拖拽 */
@@ -1367,6 +1442,16 @@
         if (raw.indexOf("%") > -1) rad = Math.min(w, h) * rad / 100;
         radii[i] = Math.max(0, Math.min(rad, Math.min(w, h) / 2)) * dpr;
       }
+
+      /* 绘制顺序 = z-index 升序（拖拽时被抬到最上层的那块最后画） */
+      var n = Math.min(objs.length, MAX);
+      var keys = [];
+      for (var k = 0; k < n; k++) {
+        var z = parseFloat(getComputedStyle(objs[k]).zIndex);
+        keys.push({ i: k, z: isNaN(z) ? 0 : z });
+      }
+      keys.sort(function (a, b) { return a.z - b.z || a.i - b.i; });
+      for (var m = 0; m < n; m++) order[m] = keys[m].i;
     }
 
     function render() {
@@ -1380,10 +1465,31 @@
       gl.uniform1f(uni.thick, THICK * dpr);
       gl.uniform1f(uni.ior, IOR);
       gl.uniform1f(uni.aberr, ABERR);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.uniform1i(uni.tex, 0);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.activeTexture(gl.TEXTURE0);
+
+      var n = Math.min(objs.length, MAX);
+
+      /* 单块或没有离屏目标：一次画完 */
+      if (!targets || n < 2) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.uniform1i(uni.layer, -1);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        return;
+      }
+
+      /* 多层：自底向上逐块渲染，每块都读上一块的结果 —— 上层玻璃真实折射下层玻璃。
+         最后一层直接上屏，中间层走 ping-pong，全程不读回 CPU */
+      var src = tex;
+      for (var k = 0; k < n; k++) {
+        var last = (k === n - 1);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, last ? null : targets[k & 1].fb);
+        gl.uniform1i(uni.layer, order[k]);
+        gl.bindTexture(gl.TEXTURE_2D, src);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        if (!last) src = targets[k & 1].tx;
+      }
     }
 
     var queued = false;
@@ -1414,6 +1520,7 @@
 
       if (gl) {
         gl.viewport(0, 0, pw, ph);
+        buildTargets(pw, ph);
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, off);
         render();
@@ -1435,6 +1542,7 @@
       }
       canvas.addEventListener("webglcontextlost", function (e) {
         e.preventDefault();
+        targets = null;          /* 上下文丢失后 FBO/纹理全部失效，不再引用 */
         gl = null;
         document.documentElement.classList.add("lg-plain");
       });
@@ -1447,11 +1555,13 @@
       resize();
     }
 
-    /* 拖拽：指针捕获 + 边界钳制，双击归位，方向键微调 */
+    /* 拖拽：指针捕获 + 边界钳制 + 松手惯性，双击归位，方向键微调 */
     var zTop = 2;
     objs.forEach(function (el) {
       var x = 0, y = 0, sx = 0, sy = 0, ox = 0, oy = 0, active = false;
+      var vx = 0, vy = 0, lastT = 0, glide = 0;
 
+      /* 钳制并落位，返回撞墙的轴（1=x, 2=y） */
       function apply(nx, ny) {
         var w = el.offsetWidth;
         var h = el.offsetHeight;
@@ -1459,14 +1569,61 @@
         var sh = stage.clientHeight;
         var bl = el.offsetLeft;
         var bt = el.offsetTop;
-        x = Math.max(-bl, Math.min(sw - bl - w, nx));
-        y = Math.max(-bt, Math.min(sh - bt - h, ny));
+        var loX = -bl, hiX = sw - bl - w;
+        var loY = -bt, hiY = sh - bt - h;
+        var hit = 0;
+        if (nx < loX) { nx = loX; hit |= 1; }
+        else if (nx > hiX) { nx = hiX; hit |= 1; }
+        if (ny < loY) { ny = loY; hit |= 2; }
+        else if (ny > hiY) { ny = hiY; hit |= 2; }
+        x = nx;
+        y = ny;
         el.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0)";
         requestDraw();
+        return hit;
+      }
+
+      function cancelGlide() {
+        if (glide) { cancelAnimationFrame(glide); glide = 0; }
+      }
+
+      function stopGlide() {
+        cancelGlide();
+        vx = 0;
+        vy = 0;
+      }
+
+      /* 松手惯性：阻尼 0.86，滑行很短（一次普通拖动约 25px），只是顺滑不是甩出去；
+         初速也封顶，猛甩一下不会把玻璃甩到舞台另一头。撞墙单次微回弹 */
+      function startGlide() {
+        cancelGlide();   /* 只取消上一轮动画，不能顺手清速度，否则这里永远判定为「没速度」 */
+        if (prefersReduced) return;
+        var sp = Math.abs(vx) + Math.abs(vy);
+        if (sp < 0.6) { vx = 0; vy = 0; return; }
+        if (sp > 18) { vx = vx / sp * 18; vy = vy / sp * 18; }
+        var bounced = 0;
+        function step() {
+          glide = 0;
+          vx *= 0.86;
+          vy *= 0.86;
+          if (Math.abs(vx) + Math.abs(vy) < 0.35) { vx = 0; vy = 0; return; }
+          var hit = apply(x + vx, y + vy);
+          if (hit & 1) {
+            if (bounced & 1) vx = 0;
+            else { vx = -vx * 0.18; bounced |= 1; }
+          }
+          if (hit & 2) {
+            if (bounced & 2) vy = 0;
+            else { vy = -vy * 0.18; bounced |= 2; }
+          }
+          glide = requestAnimationFrame(step);
+        }
+        glide = requestAnimationFrame(step);
       }
 
       el.addEventListener("pointerdown", function (e) {
         if (e.button) return;
+        stopGlide();
         active = true;
         el.classList.add("dragging");
         el.style.zIndex = String(++zTop);
@@ -1474,13 +1631,24 @@
         sy = e.clientY;
         ox = x;
         oy = y;
+        lastT = e.timeStamp || performance.now();
         try { el.setPointerCapture(e.pointerId); } catch (err) {}
       });
 
       el.addEventListener("pointermove", function (e) {
         if (!active) return;
         e.preventDefault();
-        apply(ox + e.clientX - sx, oy + e.clientY - sy);
+        var nx = ox + e.clientX - sx;
+        var ny = oy + e.clientY - sy;
+        var now = e.timeStamp || performance.now();
+        var dt = now - lastT;
+        /* 归一化成「每帧位移」再平滑，鼠标回报率高低都能得到同样的滑行距离 */
+        if (dt > 0 && dt < 120) {
+          vx = vx * 0.4 + (nx - x) / dt * 16.67 * 0.6;
+          vy = vy * 0.4 + (ny - y) / dt * 16.67 * 0.6;
+        }
+        lastT = now;
+        apply(nx, ny);
       });
 
       function stop(e) {
@@ -1488,11 +1656,13 @@
         active = false;
         el.classList.remove("dragging");
         try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+        startGlide();
       }
       el.addEventListener("pointerup", stop);
       el.addEventListener("pointercancel", stop);
 
       el.addEventListener("dblclick", function () {
+        stopGlide();
         x = 0;
         y = 0;
         el.style.transform = "";
@@ -1508,6 +1678,7 @@
         else if (e.key === "ArrowDown") ny += step;
         else return;
         e.preventDefault();
+        stopGlide();
         apply(nx, ny);
       });
     });
