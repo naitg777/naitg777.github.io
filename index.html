@@ -134,7 +134,8 @@
     <h2>联系 / Contact</h2>
     <div class="links">
       <a href="https://github.com/naitg777" target="_blank" rel="noopener">GitHub @naitg777</a>
-      <a href="mailto:wlh2226545224@gmail.com">wlh2226545224@gmail.com</a>
+      <a href="#" id="email-link" rel="nofollow noopener">邮箱 · 点击查看</a>
+      <noscript><span class="item-desc">邮箱请通过上方 GitHub 主页联系</span></noscript>
     </div>
   </section>
 
@@ -145,6 +146,23 @@
 </main>
 <script>
   document.getElementById("year").textContent = new Date().getFullYear();
+
+  (function () {
+    var link = document.getElementById("email-link");
+    if (!link) return;
+    var local = [119, 108, 104, 50, 50, 50, 54, 53, 52, 53, 50, 50, 52];
+    var host = [103, 109, 97, 105, 108, 46, 99, 111, 109];
+    link.addEventListener("click", function (e) {
+      e.preventDefault();
+      var addr =
+        String.fromCharCode.apply(null, local) +
+        "@" +
+        String.fromCharCode.apply(null, host);
+      link.textContent = addr;
+      link.href = "mailto:" + addr;
+      window.location.href = "mailto:" + addr;
+    });
+  })();
 </script>
 </body>
 </html>
