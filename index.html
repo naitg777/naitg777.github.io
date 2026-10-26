@@ -225,6 +225,18 @@
       linear-gradient(to left, #000 0 2px, transparent 6px);
   }
 
+  /* 导航专用：单层高斯模糊，不做边缘透镜 */
+  .glass-blur {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: var(--glass-bg);
+    -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.04) contrast(1.04);
+    backdrop-filter: blur(20px) saturate(180%) brightness(1.04) contrast(1.04);
+    transition: background-image 0.3s var(--ease);
+  }
+
   /* ── 导航 ── */
   nav {
     position: sticky;
@@ -243,7 +255,7 @@
       0 2px 6px rgba(0, 0, 0, 0.05),
       0 16px 42px -18px rgba(0, 0, 0, 0.28);
   }
-  nav.scrolled .glass-core { background-image: var(--glass-bg-strong); }
+  nav.scrolled .glass-blur { background-image: var(--glass-bg-strong); }
 
   nav::before {
     content: "";
@@ -255,6 +267,22 @@
     background-size: 200px 200px;
     opacity: var(--grain);
     mix-blend-mode: overlay;
+  }
+
+  /* 导航镜面：上沿高光 + 两道色散 + 下沿弱反光 */
+  nav::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    box-shadow:
+      inset 0 1px 0 var(--spec-top),
+      inset 0 2px 0 var(--disp-blue),
+      inset 0 3px 0 var(--disp-pink),
+      inset 0 6px 10px -6px var(--spec-top-soft),
+      inset 0 -1px 0 var(--spec-bottom),
+      inset 0 -7px 11px -8px var(--spec-bottom-soft);
   }
 
   /* 缓慢扫光 */
@@ -693,10 +721,12 @@
   /* 不支持 backdrop-filter 时退回纯色玻璃 */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .glass-core { background-color: rgba(255, 255, 255, 0.82); }
+    .glass-blur { background-color: rgba(255, 255, 255, 0.82); }
   }
   @media (prefers-color-scheme: dark) {
     @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .glass-core { background-color: rgba(28, 28, 30, 0.86); }
+      .glass-blur { background-color: rgba(28, 28, 30, 0.86); }
     }
   }
 
@@ -734,8 +764,7 @@
 </div>
 
 <nav>
-  <span class="glass-core" aria-hidden="true"></span>
-  <span class="glass-rim" aria-hidden="true"></span>
+  <span class="glass-blur" aria-hidden="true"></span>
   <span class="sheen" aria-hidden="true"></span>
   <span class="glare" id="nav-glare" aria-hidden="true"></span>
   <div class="nav-inner">
