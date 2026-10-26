@@ -675,6 +675,193 @@
     flex-shrink: 0;
   }
 
+  /* ══════════════════════════════════════════════════
+     液态玻璃：SVG 位移折射
+       JS 按元素尺寸生成位移图 → feDisplacementMap 把背景
+       逐像素推开，形成真实透镜形变（而非模糊蒙版）
+       Chromium 专属；其余浏览器降级为毛玻璃
+     ══════════════════════════════════════════════════ */
+  .lg-stage {
+    position: relative;
+    height: 420px;
+    margin-top: 30px;
+    border-radius: 24px;
+    overflow: hidden;
+    isolation: isolate;
+    background: #080d18;
+    box-shadow:
+      0 0 0 0.5px var(--hairline),
+      0 1px 2px rgba(0, 0, 0, 0.05),
+      0 26px 64px -34px rgba(0, 0, 0, 0.42);
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .lg-mesh {
+    position: absolute;
+    inset: -18%;
+    background:
+      radial-gradient(38% 42% at 22% 20%, #0a84ff 0%, rgba(10, 132, 255, 0) 66%),
+      radial-gradient(36% 40% at 74% 26%, #5e5ce6 0%, rgba(94, 92, 230, 0) 68%),
+      radial-gradient(40% 44% at 68% 82%, #30d158 0%, rgba(48, 209, 88, 0) 66%),
+      radial-gradient(34% 38% at 14% 78%, #ff375f 0%, rgba(255, 55, 95, 0) 68%),
+      linear-gradient(150deg, #0b1020 0%, #141a36 55%, #06131f 100%);
+  }
+
+  .lg-lines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.075) 0 1px, transparent 1px 24px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.55) 55%, transparent 92%);
+    mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.55) 55%, transparent 92%);
+  }
+
+  .lg-type {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+    padding-left: 5%;
+    pointer-events: none;
+    font-size: clamp(34px, 5.4vw, 56px);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 0.94;
+    color: rgba(255, 255, 255, 0.26);
+  }
+  .lg-type span { white-space: nowrap; }
+
+  .lg-obj {
+    position: absolute;
+    z-index: 2;
+    isolation: isolate;
+    cursor: grab;
+    touch-action: none;
+    box-shadow: 0 12px 28px -16px rgba(0, 0, 0, 0.6);
+  }
+  .lg-obj.dragging { cursor: grabbing; }
+
+  /* 折射层：backdrop-filter 指向 JS 动态生成的 SVG 滤镜 */
+  .lg-obj::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    isolation: isolate;
+    -webkit-backdrop-filter: var(--lg-filter, none);
+    backdrop-filter: var(--lg-filter, none);
+  }
+
+  /* 染色 + 内沿镜面 */
+  .lg-obj::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: rgba(255, 255, 255, 0.06);
+    background-image: var(--lg-tint);
+    box-shadow:
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.58),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 0 26px rgba(255, 255, 255, 0.05);
+  }
+  .lg-obj > * { position: relative; z-index: 1; }
+
+  .lg-card {
+    left: 22px;
+    top: 30px;
+    width: 220px;
+    height: 140px;
+    border-radius: 30px;
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 3px;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.34);
+    --lg-tint: linear-gradient(150deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.02) 55%,
+      rgba(255, 255, 255, 0.08) 100%);
+  }
+  .lg-card-title { font-size: 17px; font-weight: 500; letter-spacing: -0.012em; }
+  .lg-card-sub { font-size: 11.5px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.72); }
+
+  .lg-pill {
+    right: 26px;
+    top: 118px;
+    width: 152px;
+    height: 52px;
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.34);
+    --lg-tint: linear-gradient(160deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.04) 100%);
+  }
+  .lg-pill i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0.85;
+    flex-shrink: 0;
+  }
+
+  .lg-orb {
+    left: 46%;
+    top: 44%;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    --lg-tint: radial-gradient(circle at 34% 28%,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.03) 56%,
+      rgba(255, 255, 255, 0.10) 100%);
+  }
+
+  .lg-note {
+    margin-top: 14px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--fg-muted);
+    opacity: 0.85;
+  }
+
+  .body-text code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 0.88em;
+    padding: 1px 5px;
+    border-radius: 5px;
+    background: var(--chip-bg);
+    border: 1px solid var(--chip-line);
+    color: var(--fg);
+  }
+
+  /* 非 Chromium：退化为毛玻璃 */
+  .lg-plain .lg-obj::after {
+    -webkit-backdrop-filter: blur(16px) saturate(180%) brightness(1.14);
+    backdrop-filter: blur(16px) saturate(180%) brightness(1.14);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .lg-obj::before { background-color: rgba(255, 255, 255, 0.34); }
+  }
+
   footer {
     padding: 56px 0 64px;
     color: var(--fg-muted);
@@ -755,6 +942,11 @@
     .nav-inner { padding: 0 22px; gap: 16px; font-size: 12.5px; }
     .card { padding: 22px; }
     .contact-pill { padding: 12px 20px; font-size: 14px; }
+    .lg-stage { height: 380px; border-radius: 20px; }
+    .lg-card { width: 190px; height: 124px; left: 18px; top: 20px; padding: 16px 18px; border-radius: 26px; }
+    .lg-card-title { font-size: 15.5px; }
+    .lg-pill { width: 132px; height: 48px; right: 16px; top: 158px; border-radius: 24px; font-size: 13px; }
+    .lg-orb { width: 72px; height: 72px; left: 20%; top: 62%; }
   }
 </style>
 </head>
@@ -779,6 +971,7 @@
     <a href="#about" data-spy="about">关于</a>
     <a href="#skills" data-spy="skills">技能</a>
     <a href="#projects" data-spy="projects">项目</a>
+    <a href="#glass" data-spy="glass">玻璃</a>
     <a href="#contact" data-spy="contact">联系</a>
   </div>
 </nav>
@@ -844,6 +1037,42 @@
       </div>
 
     </div>
+  </section>
+
+  <section id="glass" class="reveal">
+    <p class="label">液态玻璃 / Liquid Glass</p>
+    <p class="lede">玻璃不是画出来的，是<em>算出来的</em>。</p>
+    <p class="body-text">下面这三块玻璃没有用图片，也没有用模糊蒙版。JS 按元素尺寸生成一张位移图，记录每条边缘的法线方向与偏移量；SVG 的 <code>feDisplacementMap</code> 再照这张图把背后的像素逐点推开，叠加一层镜面高光，就得到真实的透镜形变。拖动它们，看字被拉开的样子。</p>
+
+    <div class="lg-stage" id="lg-stage">
+      <span class="lg-mesh" aria-hidden="true"></span>
+      <span class="lg-lines" aria-hidden="true"></span>
+      <span class="lg-type" aria-hidden="true">
+        <span>LIQUID GLASS</span>
+        <span>LIQUID GLASS</span>
+        <span>LIQUID GLASS</span>
+        <span>LIQUID GLASS</span>
+      </span>
+
+      <div class="lg-obj lg-card" tabindex="0" aria-label="可拖动的液态玻璃卡片">
+        <span class="lg-card-title">Liquid Glass</span>
+        <span class="lg-card-sub">SVG · feDisplacementMap</span>
+      </div>
+
+      <div class="lg-obj lg-pill" tabindex="0" aria-label="可拖动的液态玻璃药丸">
+        <i aria-hidden="true"></i><span>Glass</span>
+      </div>
+
+      <div class="lg-obj lg-orb" tabindex="0" aria-label="可拖动的液态玻璃圆球"></div>
+    </div>
+
+    <p class="lg-note">拖动玻璃 · 双击归位 · 方向键微调。折射层仅 Chromium 支持，其余浏览器自动降级为毛玻璃。实现思路来自开源项目 archisvaze/liquid-glass（MIT）。</p>
+
+    <svg width="0" height="0" aria-hidden="true" focusable="false"
+         style="position:absolute;overflow:hidden;pointer-events:none"
+         color-interpolation-filters="sRGB">
+      <defs id="lg-defs"></defs>
+    </svg>
   </section>
 
   <section id="contact" class="reveal">
@@ -921,7 +1150,7 @@
       });
     }, { rootMargin: "-45% 0px -50% 0px", threshold: 0 });
 
-    ["about", "skills", "projects", "contact"].forEach(function (id) {
+    ["about", "skills", "projects", "glass", "contact"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) spy.observe(el);
     });
@@ -962,6 +1191,284 @@
       });
     }, { threshold: 0.1, rootMargin: "0px 0px -60px 0px" });
     Array.prototype.forEach.call(items, function (el) { io.observe(el); });
+  })();
+
+  /* 液态玻璃：按元素尺寸生成位移图 + 镜面图，喂给 SVG 滤镜做真实折射
+     算法思路参考 archisvaze/liquid-glass (MIT)
+     ────────────────────────────────────────────── */
+  (function () {
+    var stage = document.getElementById("lg-stage");
+    var defs = document.getElementById("lg-defs");
+    if (!stage || !defs) return;
+
+    var objs = Array.prototype.slice.call(stage.querySelectorAll(".lg-obj"));
+    if (!objs.length) return;
+
+    var IOR = 1.5;        /* 折射率 */
+    var THICK = 18;       /* 玻璃厚度 */
+    var BEZEL = 24;       /* 边缘倒角宽度 */
+    var BLUR = 1.2;       /* 背景模糊 */
+    var SPEC_OP = 0.55;   /* 镜面高光强度 */
+    var SPEC_SAT = 4;     /* 折射后饱和度 */
+
+    /* 只有 Chromium 的 backdrop-filter 接受 url() 引用 SVG 滤镜 */
+    var ua = navigator.userAgent;
+    var isChromium = /Chrom(e|ium)\//.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+    var urlOk = !!(window.CSS && CSS.supports &&
+      (CSS.supports("backdrop-filter", "url(#a)") ||
+       CSS.supports("-webkit-backdrop-filter", "url(#a)")));
+    var canRefract = isChromium && urlOk;
+
+    /* 圆角方形的表面高度函数（squircle，苹果图标那种超椭圆） */
+    function surface(x) {
+      return Math.pow(1 - Math.pow(1 - x, 4), 0.25);
+    }
+
+    /* 沿倒角采样：每一圈的法线折射后落到多远 */
+    function refractionProfile(thick, bezel, ior, n) {
+      var eta = 1 / ior;
+      var out = new Float64Array(n);
+      for (var i = 0; i < n; i++) {
+        var x = i / n;
+        var y = surface(x);
+        var dx = x < 1 ? 1e-4 : -1e-4;
+        var deriv = (surface(x + dx) - y) / dx;
+        var mag = Math.sqrt(deriv * deriv + 1);
+        var nx = -deriv / mag;
+        var ny = -1 / mag;
+        var dot = ny;
+        var k = 1 - eta * eta * (1 - dot * dot);
+        if (k < 0) { out[i] = 0; continue; }
+        var sq = Math.sqrt(k);
+        var rx = -(eta * dot + sq) * nx;
+        var ry = eta - (eta * dot + sq) * ny;
+        out[i] = ry ? rx * ((y * bezel + thick) / ry) : 0;
+      }
+      return out;
+    }
+
+    /* 位移图：R/G 通道编码 X/Y 偏移量，128 为不动 */
+    function displacementMap(w, h, r, bezel, prof, maxDisp) {
+      var c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      var ctx = c.getContext("2d");
+      var img = ctx.createImageData(w, h);
+      var d = img.data;
+      for (var i = 0; i < d.length; i += 4) {
+        d[i] = 128; d[i + 1] = 128; d[i + 2] = 0; d[i + 3] = 255;
+      }
+
+      var rSq = r * r;
+      var r1Sq = (r + 1) * (r + 1);
+      var inner = Math.max(r - bezel, 0);
+      var rBSq = inner * inner;
+      var wB = w - r * 2;
+      var hB = h - r * 2;
+      var S = prof.length;
+
+      for (var y1 = 0; y1 < h; y1++) {
+        for (var x1 = 0; x1 < w; x1++) {
+          var x = x1 < r ? x1 - r : (x1 >= w - r ? x1 - r - wB : 0);
+          var y = y1 < r ? y1 - r : (y1 >= h - r ? y1 - r - hB : 0);
+          var dSq = x * x + y * y;
+          if (dSq > r1Sq || dSq < rBSq) continue;
+          var dist = Math.sqrt(dSq);
+          if (!dist) continue;
+          var fromSide = r - dist;
+          var op = dSq < rSq ? 1 : 1 - (dist - r) / (Math.sqrt(r1Sq) - r);
+          if (op <= 0) continue;
+          var bi = Math.min(((fromSide / bezel) * S) | 0, S - 1);
+          if (bi < 0) bi = 0;
+          var disp = prof[bi] || 0;
+          var idx = (y1 * w + x1) * 4;
+          d[idx] = (128 + (-x / dist) * disp / maxDisp * 127 * op + 0.5) | 0;
+          d[idx + 1] = (128 + (-y / dist) * disp / maxDisp * 127 * op + 0.5) | 0;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return c.toDataURL();
+    }
+
+    /* 镜面图：沿倒角外缘的一圈高光，按光方向衰减 */
+    function specularMap(w, h, r, bezel, angle) {
+      angle = angle == null ? Math.PI / 3 : angle;
+      var c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      var ctx = c.getContext("2d");
+      var img = ctx.createImageData(w, h);
+      var d = img.data;
+      d.fill(0);
+
+      var rSq = r * r;
+      var r1Sq = (r + 1) * (r + 1);
+      var inner = Math.max(r - bezel, 0);
+      var rBSq = inner * inner;
+      var wB = w - r * 2;
+      var hB = h - r * 2;
+      var sx = Math.cos(angle);
+      var sy = Math.sin(angle);
+
+      for (var y1 = 0; y1 < h; y1++) {
+        for (var x1 = 0; x1 < w; x1++) {
+          var x = x1 < r ? x1 - r : (x1 >= w - r ? x1 - r - wB : 0);
+          var y = y1 < r ? y1 - r : (y1 >= h - r ? y1 - r - hB : 0);
+          var dSq = x * x + y * y;
+          if (dSq > r1Sq || dSq < rBSq) continue;
+          var dist = Math.sqrt(dSq);
+          if (!dist) continue;
+          var fromSide = r - dist;
+          var op = dSq < rSq ? 1 : 1 - (dist - r) / (Math.sqrt(r1Sq) - r);
+          if (op <= 0) continue;
+          var dotv = Math.abs((x / dist) * sx + (-y / dist) * sy);
+          var edge = Math.sqrt(Math.max(0, 1 - (1 - fromSide) * (1 - fromSide)));
+          var coeff = dotv * edge;
+          var col = (255 * coeff) | 0;
+          var idx = (y1 * w + x1) * 4;
+          d[idx] = col;
+          d[idx + 1] = col;
+          d[idx + 2] = col;
+          d[idx + 3] = (col * coeff * op) | 0;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return c.toDataURL();
+    }
+
+    var sizeKey = "";
+
+    function buildAll() {
+      if (!canRefract) return;
+      var parts = [];
+      var assign = [];
+
+      objs.forEach(function (el, i) {
+        var w = el.offsetWidth;
+        var h = el.offsetHeight;
+        if (w < 10 || h < 10) return;
+
+        var raw = getComputedStyle(el).borderTopLeftRadius;
+        var r = parseFloat(raw) || 24;
+        if (raw.indexOf("%") > -1) r = Math.min(w, h) * r / 100;
+        r = Math.max(1, Math.floor(Math.min(r, w / 2, h / 2)));
+        var bezel = Math.max(1, Math.min(BEZEL, r - 1, Math.min(w, h) / 2 - 1));
+
+        var prof = refractionProfile(THICK, bezel, IOR, 128);
+        var maxDisp = 1;
+        for (var k = 0; k < prof.length; k++) {
+          var a = Math.abs(prof[k]);
+          if (a > maxDisp) maxDisp = a;
+        }
+
+        var dUrl = displacementMap(w, h, r, bezel, prof, maxDisp);
+        var sUrl = specularMap(w, h, r, bezel * 2.5);
+        var id = "lg-f" + i;
+
+        parts.push(
+          '<filter id="' + id + '" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">' +
+            '<feGaussianBlur in="SourceGraphic" stdDeviation="' + BLUR + '" result="b"/>' +
+            '<feImage href="' + dUrl + '" x="0" y="0" width="' + w + '" height="' + h + '" preserveAspectRatio="none" result="dm"/>' +
+            '<feDisplacementMap in="b" in2="dm" scale="' + maxDisp.toFixed(2) + '" xChannelSelector="R" yChannelSelector="G" result="dsp"/>' +
+            '<feColorMatrix in="dsp" type="saturate" values="' + SPEC_SAT + '" result="dspSat"/>' +
+            '<feImage href="' + sUrl + '" x="0" y="0" width="' + w + '" height="' + h + '" preserveAspectRatio="none" result="sp"/>' +
+            '<feComposite in="dspSat" in2="sp" operator="in" result="spMasked"/>' +
+            '<feComponentTransfer in="sp" result="spFaded"><feFuncA type="linear" slope="' + SPEC_OP + '"/></feComponentTransfer>' +
+            '<feBlend in="spMasked" in2="dsp" mode="normal" result="merged"/>' +
+            '<feBlend in="spFaded" in2="merged" mode="normal"/>' +
+          '</filter>'
+        );
+        assign.push({ el: el, id: id });
+      });
+
+      defs.innerHTML = parts.join("");
+      assign.forEach(function (item) {
+        item.el.style.setProperty("--lg-filter", "url(#" + item.id + ")");
+      });
+
+      sizeKey = objs.map(function (el) {
+        return el.offsetWidth + "x" + el.offsetHeight;
+      }).join("|");
+    }
+
+    if (canRefract) {
+      buildAll();
+      var timer = null;
+      window.addEventListener("resize", function () {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          var key = objs.map(function (el) {
+            return el.offsetWidth + "x" + el.offsetHeight;
+          }).join("|");
+          if (key !== sizeKey) buildAll();
+        }, 220);
+      }, { passive: true });
+    } else {
+      document.documentElement.classList.add("lg-plain");
+    }
+
+    /* 拖拽：指针捕获 + 边界钳制，双击归位，方向键微调 */
+    var zTop = 2;
+    objs.forEach(function (el) {
+      var x = 0, y = 0, sx = 0, sy = 0, ox = 0, oy = 0, active = false;
+
+      function apply(nx, ny) {
+        var w = el.offsetWidth;
+        var h = el.offsetHeight;
+        var sw = stage.clientWidth;
+        var sh = stage.clientHeight;
+        var bl = el.offsetLeft;
+        var bt = el.offsetTop;
+        x = Math.max(-bl, Math.min(sw - bl - w, nx));
+        y = Math.max(-bt, Math.min(sh - bt - h, ny));
+        el.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0)";
+      }
+
+      el.addEventListener("pointerdown", function (e) {
+        if (e.button) return;
+        active = true;
+        el.classList.add("dragging");
+        el.style.zIndex = String(++zTop);
+        sx = e.clientX;
+        sy = e.clientY;
+        ox = x;
+        oy = y;
+        try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      });
+
+      el.addEventListener("pointermove", function (e) {
+        if (!active) return;
+        e.preventDefault();
+        apply(ox + e.clientX - sx, oy + e.clientY - sy);
+      });
+
+      function stop(e) {
+        if (!active) return;
+        active = false;
+        el.classList.remove("dragging");
+        try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+      }
+      el.addEventListener("pointerup", stop);
+      el.addEventListener("pointercancel", stop);
+
+      el.addEventListener("dblclick", function () {
+        x = 0;
+        y = 0;
+        el.style.transform = "";
+      });
+
+      el.addEventListener("keydown", function (e) {
+        var step = e.shiftKey ? 18 : 6;
+        var nx = x, ny = y;
+        if (e.key === "ArrowLeft") nx -= step;
+        else if (e.key === "ArrowRight") nx += step;
+        else if (e.key === "ArrowUp") ny -= step;
+        else if (e.key === "ArrowDown") ny += step;
+        else return;
+        e.preventDefault();
+        apply(nx, ny);
+      });
+    });
   })();
 
   /* 光标：跟随光斑 + 导航反光 + 卡片反光 */
